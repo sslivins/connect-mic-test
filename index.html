@@ -29,6 +29,10 @@
     <button id="play" disabled>3. Play back</button>
     <button id="tone">Speaker tone</button>
   </div>
+  <div class="row">
+    <button id="raw">Try raw audio:true</button>
+    <button id="each">Try each input</button>
+  </div>
   <div id="meter"><div id="bar"></div></div>
   <p id="level">Level: –</p>
   <pre id="log"></pre>
@@ -135,6 +139,32 @@ $('tone').onclick = () => {
   osc.start();
   osc.stop(ctx.currentTime + 1);
   log('speaker: 1 s 440 Hz tone');
+};
+
+async function tryOpen(label, constraints) {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia(constraints);
+    const t = s.getAudioTracks()[0];
+    log(`${label}: OK "${t.label}" ${JSON.stringify(t.getSettings())}`, 'ok');
+    s.getTracks().forEach((x) => x.stop());
+  } catch (e) {
+    log(`${label}: ${e.name}: ${e.message}`, 'bad');
+  }
+}
+
+$('raw').onclick = async () => {
+  await tryOpen('raw audio:true', { audio: true });
+  await tryOpen('all processing off', {
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  });
+};
+
+$('each').onclick = async () => {
+  const devs = (await listDevices('inputs')).filter((d) => d.kind === 'audioinput');
+  if (!devs.length) log('no audioinput devices to try', 'bad');
+  for (const d of devs) {
+    await tryOpen(`device "${d.label || d.deviceId.slice(0, 10)}"`, { audio: { deviceId: { exact: d.deviceId } } });
+  }
 };
 
 checks();
